@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OBS Donation Ticker — Out then In (Fixed: no stuck text, faster reappear)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{--bg:#0f172a;--panel:#0b1220;--accent:#7c3aed}
+    body{margin:0;background:var(--bg);color:#fff;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
+    .setup-ui{max-width:960px;margin:18px auto;padding:16px;background:var(--panel);border-radius:8px}
+    .ticker-fixed{position:fixed;left:0;right:0;bottom:0;z-index:60}
+    .ticker-wrap{overflow:hidden;width:100%;background:rgba(17,24,39,0.95);backdrop-filter:blur(4px);padding:12px 8px;box-sizing:border-box}
+    .ticker-viewport{position:relative;height:1.4em;display:block}
+    .ticker-strip{position:absolute;top:50%;white-space:nowrap;transform:translate3d(0,-50%,0);will-change:transform}
+    .donor{display:inline-block;margin-right:36px;font-weight:700;font-size:1.35rem}
+    .sep{color:var(--accent);margin:0 10px;font-weight:700}
+    @media (max-width:640px){ .donor{font-size:1rem;margin-right:20px} }
+  </style>
+</head>
+<body class="p-0">
+
+  <div class="setup-ui">
+    <h2 class="text-2xl font-bold mb-2">OBS Donation Ticker — Fixed</h2>
+    <p class="text-sm text-gray-400 mb-3">Reads <code>/donations.json</code>. Start <code>server.py</code> to serve file and <code>/add-donation</code> endpoint.</p>
+
+    <div class="flex gap-3 mb-3">
+      <button id="toggleForm" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded">Add Donation</button>
+    </div>
+
+    <form id="addDonationForm" class="hidden grid grid-cols-3 gap-3 items-center">
+      <input id="donorName" placeholder="Donor Name" class="p-2 bg-gray-800 rounded col-span-1" required>
+      <input id="donorTip" type="number" placeholder="Tip Amount" class="p-2 bg-gray-800 rounded col-span-1" required>
+      <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-3 rounded">Add Donation</button>
+    </form>
+
+    <p id="status" class="text-xs text-gray-400 mt-3">Status: initializing…</p>
+  </div>
+
+  <div class="ticker-fixed">
+    <div class="ticker-wrap">
+      <div class="ticker-viewport" id="viewport">
+        <div class="ticker-strip" id="stripA"></div>
+        <div class="ticker-strip" id="stripB"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* CONFIG */
+const JSON_FILE_PATH = "/donations.json";
+const POLL_INTERVAL_MS = 3000;
+const MAX_ITEMS = 10;
+
+const SCROLL_SPEED_PX_PER_SEC = 120;      // base speed (outgoing)
+const IN_SPEED_MULTIPLIER = 1.25;         // incoming is faster to reappear sooner
+const PAUSE_AT_END_MS = 25;             // pause between out/in
+const MIN_DURATION_MS = 300;
+const MAX_DURATION_MS = 60000;
+const EXTRA_GAP_PX = 24;                 // ensure off-screen placement
+
+/* ELEMENTS */
+const stripA = document.getElementById('stripA');
+const stripB = document.getElementById('stripB');
+const viewport = document.getElementById('viewport');
+const statusEl = document.getElementById('status');
+const form = document.getElementById('addDonationForm');
+const donorNameInput = document.getElementById('donorName');
+const donorTipInput = document.getElementById('donorTip');
+document.getElementById('toggleForm').onclick = () => form.classList.toggle('hidden');
+
+/* STATE */
+let currentItems = null;
+let pendingItems = null;
+let lastFetchedText = '';
+let pollIntervalId = null;
+
+let contentWidth = 0;     // measured width of content (px)
+let containerWidth = 0;   // viewport width (px)
+let visibleStrip = 'A';   // which strip is visible: 'A' or 'B'
+let running = false;
+let resizeTimer = null;
+
+/* UTIL */
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function formatDonor(d){ const n = escapeHtml(d.name||'Anonymous'); const t = Number(d.tip||0).toLocaleString('en-IN'); return `<span class="donor">${n} : ₹${t}</span>`; }
+function buildSingleHTML(items){ if(!Array.isArray(items)||items.length===0) return `<span class="donor">Waiting for donations...</span>`; return items.slice(0,MAX_ITEMS).map(formatDonor).join(`<span class="sep">|</span>`); }
+function measureHtmlWidth(html){
+  const tmp = document.createElement('div');
+  tmp.style.position='absolute'; tmp.style.visibility='hidden'; tmp.style.whiteSpace='nowrap';
+  try { tmp.style.font = getComputedStyle(stripA).font || ''; } catch(e){}
+  tmp.innerHTML = html;
+  document.body.appendChild(tmp);
+  const w = tmp.scrollWidth || 0;
+  document.body.removeChild(tmp);
+  return w;
+}
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+
+/* LAYOUT: ensure content placed and measured */
+function layoutForItems(items){
+  const html = buildSingleHTML(items);
+  stripA.innerHTML = html;
+  stripB.innerHTML = html;
+
+  containerWidth = viewport.clientWidth || window.innerWidth || 0;
+  contentWidth = measureHtmlWidth(html);
+
+  // ensure movement covers full area so nothing remains visible stuck
+  // outgoing must move at least max(contentWidth, containerWidth) + EXTRA_GAP_PX
+  const minDistance = Math.max(contentWidth, containerWidth) + EXTRA_GAP_PX;
+  contentWidth = Math.max(contentWidth, minDistance - EXTRA_GAP_PX); // keep contentWidth for measurement but ensure minDistance logic below
+
+  // position visible at 0 and other off-screen right at (containerWidth + EXTRA_GAP_PX)
+  const offRight = containerWidth + EXTRA_GAP_PX;
+  stripA.style.transition='none';
+  stripB.style.transition='none';
+  if(visibleStrip === 'A'){
+    stripA.style.transform = `translate3d(0px, -50%, 0)`;
+    stripB.style.transform = `translate3d(${offRight}px, -50%, 0)`;
+  } else {
+    stripB.style.transform = `translate3d(0px, -50%, 0)`;
+    stripA.style.transform = `translate3d(${offRight}px, -50%, 0)`;
+  }
+}
+
+/* CORE: move out fully, then bring in the other strip (sequential, no overlap) */
+function moveOutThenIn(){
+  if(running) return;
+  running = true;
+
+  const outEl = (visibleStrip === 'A') ? stripA : stripB;
+  const inEl  = (visibleStrip === 'A') ? stripB : stripA;
+
+  // ensure inEl has next content if pending (applied off-screen)
+  if(Array.isArray(pendingItems)){
+    inEl.innerHTML = buildSingleHTML(pendingItems);
+    // remeasure because incoming content may be larger
+    const newMeasured = measureHtmlWidth(inEl.innerHTML);
+    // update contentWidth so outgoing moves fully out (use max of both content widths and container)
+    const minDistance = Math.max(newMeasured, containerWidth) + EXTRA_GAP_PX;
+    contentWidth = Math.max(contentWidth, newMeasured);
+    // position inEl offRight using containerWidth+gap
+    const offRight = containerWidth + EXTRA_GAP_PX;
+    inEl.style.transition = 'none';
+    inEl.style.transform = `translate3d(${offRight}px, -50%, 0)`;
+    // clear queued but keep currentItems updated only after incoming completes
+  } else {
+    // ensure it's positioned off-screen right
+    const offRight = containerWidth + EXTRA_GAP_PX;
+    inEl.style.transition = 'none';
+    inEl.style.transform = `translate3d(${offRight}px, -50%, 0)`;
+  }
+
+  // Compute distances and durations
+  // Outgoing must completely leave: distanceOut = Math.max(contentWidth, containerWidth) + EXTRA_GAP_PX
+  const distanceOut = Math.max(contentWidth, containerWidth) + EXTRA_GAP_PX;
+  const durationOutMs = clamp(Math.round((distanceOut / SCROLL_SPEED_PX_PER_SEC) * 1000), MIN_DURATION_MS, MAX_DURATION_MS);
+
+  // Incoming moves from offRight -> 0; distanceIn = containerWidth + EXTRA_GAP_PX
+  const distanceIn = containerWidth + EXTRA_GAP_PX;
+  // incoming is intentionally faster to reappear quicker
+  const durationInMs = clamp(Math.round((distanceIn / (SCROLL_SPEED_PX_PER_SEC * IN_SPEED_MULTIPLIER)) * 1000), MIN_DURATION_MS, MAX_DURATION_MS);
+
+  // Start outgoing animation (linear)
+  outEl.style.transition = `transform ${durationOutMs}ms linear`;
+  outEl.style.transform = `translate3d(-${distanceOut}px, -50%, 0)`;
+
+  // When outgoing finishes:
+  const onOutEnd = () => {
+    outEl.removeEventListener('transitionend', onOutEnd);
+
+    // pause briefly so the outgoing is fully gone (visual gap)
+    setTimeout(() => {
+      // instantly move outEl to offRight for reuse
+      const offRightNow = containerWidth + EXTRA_GAP_PX;
+      outEl.style.transition = 'none';
+      outEl.style.transform = `translate3d(${offRightNow}px, -50%, 0)`;
+
+      // If pending existed, make it current now
+      if(Array.isArray(pendingItems)){
+        currentItems = pendingItems;
+        pendingItems = null;
+      }
+
+      // Start incoming animation with ease-out
+      inEl.style.transition = `transform ${durationInMs}ms cubic-bezier(0.22,0,0,1)`;
+      inEl.style.transform = `translate3d(0px, -50%, 0)`;
+
+      const onInEnd = () => {
+        inEl.removeEventListener('transitionend', onInEnd);
+        // swap visible strip
+        visibleStrip = (visibleStrip === 'A') ? 'B' : 'A';
+        // small pause then next cycle
+        setTimeout(() => {
+          running = false;
+          // kick next cycle automatically
+          moveOutThenIn();
+        }, PAUSE_AT_END_MS);
+      };
+
+      inEl.addEventListener('transitionend', onInEnd);
+    }, PAUSE_AT_END_MS);
+  };
+
+  outEl.addEventListener('transitionend', onOutEnd);
+  // status
+  statusEl.textContent = `Outgoing ${Math.round(distanceOut)}px / ${durationOutMs}ms, incoming ${Math.round(distanceIn)}px / ${durationInMs}ms`;
+}
+
+/* QUEUE update safely */
+function queueUpdateFromServer(arr){
+  const sorted = (Array.isArray(arr)?arr.slice():[]).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,MAX_ITEMS);
+  if(!Array.isArray(currentItems)){
+    currentItems = sorted;
+    pendingItems = null;
+    layoutForItems(currentItems);
+    // small delay, then start cycle
+    setTimeout(() => moveOutThenIn(), 60);
+    return;
+  }
+  // identical? ignore
+  if(JSON.stringify(sorted) === JSON.stringify(currentItems)) return;
+  // queue
+  pendingItems = sorted;
+  statusEl.textContent = `Queued ${sorted.length} items (applies next cycle)`;
+}
+
+/* FETCH / POLL */
+async function fetchAndReadFile(){
+  try {
+    const res = await fetch(JSON_FILE_PATH + '?_=' + Date.now(), { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const txt = await res.text();
+    if(txt === lastFetchedText) return;
+    lastFetchedText = txt;
+    let parsed = [];
+    try { parsed = JSON.parse(txt); } catch(_) { parsed = []; }
+    queueUpdateFromServer(parsed);
+  } catch(err) {
+    console.error('Fetch error', err);
+    statusEl.textContent = 'Error reading donations.json';
+  }
+}
+
+/* FORM submit */
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = donorNameInput.value.trim();
+  const tip = parseFloat(donorTipInput.value.trim());
+  if(!name || isNaN(tip) || tip <= 0){ statusEl.textContent = 'Invalid input'; return; }
+  const payload = { name, tip, date: new Date().toISOString() };
+  try {
+    const r = await fetch('/add-donation', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if(!r.ok) throw new Error('Save failed');
+    donorNameInput.value = ''; donorTipInput.value = '';
+    await fetchAndReadFile(); // queue change
+  } catch(err){
+    console.error(err);
+    statusEl.textContent = 'Error saving donation';
+  }
+});
+
+/* RESIZE handling: debounce and re-layout without abrupt movement */
+function handleResizeEnd(){
+  containerWidth = viewport.clientWidth || window.innerWidth || 0;
+  // re-layout using currentItems or pending if no current
+  const html = buildSingleHTML(currentItems || pendingItems || []);
+  // recompute contentWidth and reposition visible & other strip so no stuck items
+  contentWidth = measureHtmlWidth(html);
+  contentWidth = Math.max(contentWidth, containerWidth + 20);
+  // reposition visible at 0, other off-right
+  const offRight = containerWidth + EXTRA_GAP_PX;
+  const visibleEl = (visibleStrip === 'A') ? stripA : stripB;
+  const otherEl = (visibleStrip === 'A') ? stripB : stripA;
+  visibleEl.style.transition = 'none';
+  otherEl.style.transition = 'none';
+  visibleEl.style.transform = `translate3d(0px, -50%, 0)`;
+  otherEl.style.transform = `translate3d(${offRight}px, -50%, 0)`;
+}
+
+window.addEventListener('resize', () => {
+  if(resizeTimer) clearTimeout(resizeTimer);
+  // pause transitions during resize to prevent odd left-right movement
+  stripA.style.transition = 'none';
+  stripB.style.transition = 'none';
+  resizeTimer = setTimeout(() => { handleResizeEnd(); resizeTimer = null; }, 200);
+});
+
+/* INIT */
+fetchAndReadFile();
+pollIntervalId = setInterval(fetchAndReadFile, POLL_INTERVAL_MS);
+
+// expose simple debug function
+window._ticker_force_relayout = () => { layoutForItems(currentItems || []); };
+
+</script>
+</body>
+</html>
