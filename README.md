@@ -213,10 +213,6 @@ Content-Type: application/json
 
 This will enable **hands-free, real-time donation updates** directly from mobile notifications without requiring any manual input.
 
-```
-
----
-
 ---
 
 ## 📜 License
