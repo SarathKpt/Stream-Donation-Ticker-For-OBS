@@ -240,5 +240,3 @@ Created by Sarath.
 Designed for **smoothest possible donation ticker experience** in OBS.
 
 ---
-
-```
