@@ -39,6 +39,7 @@ Works perfectly inside OBS Browser Source and updates without ever restarting th
 ├── obs-ticker.html     # The main ticker UI (OBS Browser Source)
 ├── server.py           # Backend server (Flask)
 ├── donations.json      # Stored donation data
+├── Run.bat             # Run This File
 └── README.md           # Documentation
 
 ````
@@ -58,7 +59,7 @@ Works perfectly inside OBS Browser Source and updates without ever restarting th
 
 ### 1. Clone the repository
 ```sh
-git clone https://github.com/ySarathKpt/Stream-Donation-Ticker-For-OBS.git
+git clone https://github.com/SarathKpt/Stream-Donation-Ticker-For-OBS.git
 cd Stream-Donation-Ticker-For-OBS
 ````
 
@@ -188,6 +189,33 @@ Example:
   }
 ]
 ```
+## 🔮 Future Plans
+
+### 1. Automatic Donations via Phone Automation (Tasker / MacroDroid)
+A planned feature is to integrate mobile automation tools such as **Tasker** (Android) or **MacroDroid** to automatically detect tip/payment notifications and send them to the ticker in real time.
+
+The workflow will be:
+
+1. Phone receives a UPI / payment / donation notification  
+2. Tasker or MacroDroid reads the notification content  
+3. The automation extracts:
+   - donor name  
+   - amount  
+   - timestamp  
+4. It then sends a JSON payload to the server using the existing endpoint:
+```
+
+POST /add-donation
+Content-Type: application/json
+
+```
+5. The ticker updates automatically at the next loop without interruptions.
+
+This will enable **hands-free, real-time donation updates** directly from mobile notifications without requiring any manual input.
+
+```
+
+---
 
 ---
 
