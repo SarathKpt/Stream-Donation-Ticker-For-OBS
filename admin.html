@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ticker Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0f172a; color: white; font-family: system-ui, sans-serif; }
+    input[type="color"] { -webkit-appearance: none; border: none; width: 32px; height: 32px; cursor: pointer; background: none; padding: 0; }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; }
+    input[type="date"] { color-scheme: dark; }
+    /* Scrollbar */
+    .custom-scroll::-webkit-scrollbar { width: 8px; }
+    .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+  </style>
+</head>
+<body class="p-4 max-w-7xl mx-auto pb-20">
+
+  <header class="mb-6 border-b border-gray-700 pb-4">
+    <h1 class="text-3xl font-bold text-indigo-400">Ticker Admin</h1>
+    <p class="text-gray-400 text-sm">Manage donations and appearance for OBS</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <!-- LEFT COLUMN: CONTROLS (2/3 Width) -->
+    <div class="lg:col-span-2 space-y-6">
+      
+      <!-- ADD DONATION -->
+      <section class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>💰</span> Add Donation
+        </h2>
+        <form id="addDonationForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Donor Name</label>
+            <input id="donorName" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-indigo-500 outline-none" placeholder="e.g. John Doe" required>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Amount</label>
+            <input id="donorTip" type="number" step="0.01" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-indigo-500 outline-none" placeholder="100" required>
+          </div>
+          <button type="submit" class="md:col-span-2 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded transition">Send to Ticker</button>
+        </form>
+        <p id="donationStatus" class="text-xs mt-2 h-4 text-green-400"></p>
+      </section>
+
+      <!-- SETTINGS FORM -->
+      <form id="configForm" class="space-y-6">
+        
+        <!-- ROW 1: FILTER & GENERAL -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- FILTER -->
+          <section class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 h-full">
+            <h2 class="text-lg font-bold mb-3 flex items-center gap-2"><span>📅</span> Data Filter</h2>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Time Period (Instant)</label>
+                <select id="filterType" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm outline-none focus:border-indigo-500">
+                  <option value="lifetime">Lifetime (All)</option>
+                  <option value="today">Today</option>
+                  <option value="week">Past Week</option>
+                  <option value="month">Past Month</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+              </div>
+              <div id="customDateWrap" class="hidden grid-cols-2 gap-2 bg-gray-900 p-2 rounded border border-gray-700">
+                <input type="date" id="customStart" class="w-full bg-gray-800 border border-gray-600 rounded p-1 text-white text-xs">
+                <input type="date" id="customEnd" class="w-full bg-gray-800 border border-gray-600 rounded p-1 text-white text-xs">
+              </div>
+            </div>
+          </section>
+
+          <!-- GENERAL (Currency + Speed) -->
+          <section class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 h-full">
+            <h2 class="text-lg font-bold mb-3 flex items-center gap-2"><span>⚙️</span> General</h2>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Currency Symbol</label>
+                <select id="currency" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm outline-none">
+                  <option value="₹">₹ (INR)</option>
+                  <option value="$">$ (USD)</option>
+                  <option value="€">€ (EUR)</option>
+                  <option value="£">£ (GBP)</option>
+                  <option value="¥">¥ (JPY)</option>
+                  <option value="kr">kr (KRW/NOK)</option>
+                  <option value="">None</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Scroll Speed (px/s)</label>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs font-mono text-gray-500 w-6">Slow</span>
+                  <input type="range" id="speed" min="50" max="400" step="10" class="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                  <span class="text-xs font-mono text-gray-500 w-6">Fast</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ROW 2: APPEARANCE & TYPOGRAPHY -->
+        <section class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold flex items-center gap-2"><span>🎨</span> Style & Colors</h2>
+            <button type="submit" class="bg-green-600 hover:bg-green-500 text-white text-sm font-bold py-1 px-4 rounded transition">Save Settings</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Colors -->
+            <div class="space-y-3 border-r border-gray-700/50 pr-0 md:pr-6">
+              <h3 class="text-xs font-bold uppercase text-gray-500 mb-2">Colors</h3>
+              
+              <div class="flex justify-between items-center bg-gray-900 p-2 rounded">
+                <label class="text-sm text-gray-400">Ticker BG</label>
+                <div class="flex items-center gap-2">
+                  <input type="color" id="clr-ticker">
+                  <input type="range" id="rng-opacity" min="0" max="100" class="w-16 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+              </div>
+              <div class="flex justify-between items-center bg-gray-900 p-2 rounded">
+                <label class="text-sm text-gray-400">Text Color</label>
+                <input type="color" id="clr-text">
+              </div>
+              <div class="flex justify-between items-center bg-gray-900 p-2 rounded">
+                <label class="text-sm text-gray-400">Accent</label>
+                <input type="color" id="clr-accent">
+              </div>
+              <div class="flex justify-between items-center bg-gray-900 p-2 rounded">
+                <label class="text-sm text-gray-400">Page BG</label>
+                <input type="color" id="clr-page">
+              </div>
+            </div>
+
+            <!-- Typography -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold uppercase text-gray-500 mb-2">Typography</h3>
+              
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Font Family</label>
+                <select id="fontFamily" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm outline-none">
+                  <option value="Inter, system-ui, sans-serif">Inter (Clean Sans)</option>
+                  <option value="'Courier New', monospace">Courier (Code)</option>
+                  <option value="'Times New Roman', serif">Times (Serif)</option>
+                  <option value="Impact, sans-serif">Impact (Bold)</option>
+                  <option value="cursive">Comic (Fun)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Font Size (rem)</label>
+                <input type="range" id="fontSize" min="0.8" max="3.0" step="0.1" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                <div class="text-xs text-right text-gray-500 mt-1 font-mono" id="fontSizeVal">1.35rem</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ROW 3: PRO MODE -->
+        <section class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+           <h2 class="text-lg font-bold mb-3 flex items-center gap-2"><span>🛠️</span> Pro Mode: Custom CSS</h2>
+           <textarea id="customCSS" rows="4" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-xs font-mono text-green-400 focus:border-indigo-500 outline-none" placeholder=".donor { font-weight: 900; } /* Override anything here */"></textarea>
+        </section>
+
+        <div id="configStatus" class="text-xs text-right h-4 text-gray-400"></div>
+      </form>
+    </div>
+
+    <!-- RIGHT COLUMN: DONATION LIST (1/3 Width) -->
+    <div class="lg:col-span-1">
+      <section class="bg-gray-900 rounded-lg shadow-lg border border-gray-700 h-full flex flex-col overflow-hidden">
+        <div class="p-3 border-b border-gray-700 bg-gray-800 flex justify-between items-center shadow-sm z-10">
+          <h2 class="text-md font-bold text-gray-200 flex items-center gap-2">
+            <span>💬</span> History
+          </h2>
+          <div class="text-[10px] bg-gray-700 px-2 py-0.5 rounded text-gray-300 font-mono" id="listCount">0</div>
+        </div>
+        <div class="flex-1 overflow-hidden relative bg-[#18181b]">
+          <div class="overflow-y-auto custom-scroll h-[800px] p-2" id="donationList">
+            <div class="text-center text-gray-600 mt-20 text-sm">Loading...</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div id="editModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="bg-gray-800 p-6 rounded-lg w-full max-w-sm border border-gray-600 shadow-2xl">
+      <h3 class="text-lg font-bold mb-4">Edit Donation</h3>
+      <input type="hidden" id="editDate">
+      <div class="mb-3">
+        <label class="block text-xs text-gray-400 mb-1">Name</label>
+        <input id="editName" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs text-gray-400 mb-1">Amount</label>
+        <input id="editTip" type="number" step="0.01" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+      </div>
+      <div class="flex gap-2 justify-end">
+        <button onclick="closeEdit()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">Cancel</button>
+        <button onclick="submitEdit()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-bold">Save</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  function getApiBase() {
+    if (window.location.protocol === 'blob:' || window.location.protocol === 'file:') return 'http://localhost:8000';
+    return '';
+  }
+  const API = getApiBase();
+
+  // --- ELEMENTS ---
+  const els = {
+    // Existing
+    page: document.getElementById('clr-page'),
+    ticker: document.getElementById('clr-ticker'),
+    opacity: document.getElementById('rng-opacity'),
+    text: document.getElementById('clr-text'),
+    accent: document.getElementById('clr-accent'),
+    filterType: document.getElementById('filterType'),
+    customStart: document.getElementById('customStart'),
+    customEnd: document.getElementById('customEnd'),
+    customDateWrap: document.getElementById('customDateWrap'),
+    status: document.getElementById('configStatus'),
+    list: document.getElementById('donationList'),
+    count: document.getElementById('listCount'),
+    
+    // New
+    currency: document.getElementById('currency'),
+    speed: document.getElementById('speed'),
+    fontFamily: document.getElementById('fontFamily'),
+    fontSize: document.getElementById('fontSize'),
+    fontSizeVal: document.getElementById('fontSizeVal'),
+    customCSS: document.getElementById('customCSS')
+  };
+
+  // --- STATE ---
+  let allDonations = [];
+
+  // --- UI LISTENERS ---
+  els.filterType.addEventListener('change', () => {
+    els.customDateWrap.classList.toggle('grid', els.filterType.value === 'custom');
+    els.customDateWrap.classList.toggle('hidden', els.filterType.value !== 'custom');
+    saveConfig(null, true); 
+  });
+  
+  els.fontSize.addEventListener('input', () => {
+    els.fontSizeVal.innerText = els.fontSize.value + "rem";
+  });
+  
+  els.customStart.addEventListener('change', () => saveConfig(null, true));
+  els.customEnd.addEventListener('change', () => saveConfig(null, true));
+
+  // --- CONFIG LOGIC ---
+  async function loadConfig() {
+    try {
+      const res = await fetch(`${API}/config`);
+      const data = await res.json();
+      
+      // Colors
+      if(data.page) els.page.value = data.page;
+      if(data.ticker) els.ticker.value = data.ticker;
+      if(data.opacity) els.opacity.value = data.opacity;
+      if(data.text) els.text.value = data.text;
+      if(data.accent) els.accent.value = data.accent;
+      
+      // General & Type
+      if(data.currency !== undefined) els.currency.value = data.currency;
+      if(data.speed) els.speed.value = data.speed;
+      if(data.font) els.fontFamily.value = data.font;
+      if(data.fontSize) {
+          els.fontSize.value = data.fontSize;
+          els.fontSizeVal.innerText = data.fontSize + "rem";
+      }
+      if(data.customCSS) els.customCSS.value = data.customCSS;
+
+      // Filter
+      if(data.filterType) els.filterType.value = data.filterType;
+      if(data.customStart) els.customStart.value = data.customStart;
+      if(data.customEnd) els.customEnd.value = data.customEnd;
+
+      if(els.filterType.value === 'custom') {
+        els.customDateWrap.classList.remove('hidden');
+        els.customDateWrap.classList.add('grid');
+      }
+
+      els.status.innerText = "Loaded.";
+      fetchList();
+    } catch(e) {
+      console.error(e);
+      els.status.innerText = "Err Loading.";
+    }
+  }
+
+  // filterOnlyMode: If true, fetch current config, patch filter, save back.
+  async function saveConfig(e, filterOnlyMode = false) {
+    if(e) e.preventDefault();
+    
+    let payload = {};
+    
+    if (filterOnlyMode) {
+      try {
+        const res = await fetch(`${API}/config`);
+        const current = await res.json();
+        payload = { ...current }; 
+        payload.filterType = els.filterType.value;
+        payload.customStart = els.customStart.value;
+        payload.customEnd = els.customEnd.value;
+        els.status.innerText = "Updating filter...";
+      } catch(e) { console.error(e); return; }
+    } else {
+      // Full Save
+      payload = {
+        page: els.page.value,
+        ticker: els.ticker.value,
+        opacity: els.opacity.value,
+        text: els.text.value,
+        accent: els.accent.value,
+        filterType: els.filterType.value,
+        customStart: els.customStart.value,
+        customEnd: els.customEnd.value,
+        // New fields
+        currency: els.currency.value,
+        speed: els.speed.value,
+        font: els.fontFamily.value,
+        fontSize: els.fontSize.value,
+        customCSS: els.customCSS.value
+      };
+      els.status.innerText = "Saving settings...";
+    }
+
+    try {
+      await fetch(`${API}/config`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      els.status.innerText = filterOnlyMode ? "Filter updated." : "Saved!";
+      if(filterOnlyMode) fetchList();
+      setTimeout(() => els.status.innerText = "", 2000);
+    } catch(e) {
+      els.status.innerText = "Save failed.";
+    }
+  }
+
+  // --- LIST LOGIC ---
+  async function fetchList() {
+    try {
+      const res = await fetch(`${API}/donations.json?_=`+Date.now());
+      allDonations = await res.json();
+      renderList();
+    } catch(e) { console.error("List err", e); }
+  }
+
+  function renderList() {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    let filtered = allDonations.filter(d => {
+       const dDate = new Date(d.date);
+       const type = els.filterType.value;
+       
+       if (type === 'today') return dDate >= todayStart;
+       if (type === 'week') return dDate >= new Date(now - 7*86400000);
+       if (type === 'month') return dDate >= new Date(now - 30*86400000);
+       if (type === 'custom') {
+         const start = els.customStart.value ? new Date(els.customStart.value) : null;
+         const end = els.customEnd.value ? new Date(els.customEnd.value) : null;
+         if(end) end.setHours(23,59,59,999);
+         if(start && dDate < start) return false;
+         if(end && dDate > end) return false;
+       }
+       return true;
+    });
+
+    filtered.sort((a,b) => new Date(a.date) - new Date(b.date));
+    els.count.innerText = `${filtered.length}`;
+    
+    // Get currency symbol from dropdown (preview purpose)
+    const sym = els.currency.value || '';
+
+    const html = filtered.map(d => {
+      const initial = d.name ? d.name[0].toUpperCase() : '?';
+      const amt = parseFloat(d.tip).toLocaleString('en-IN');
+      const time = new Date(d.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+      return `
+      <div class="flex items-start gap-3 py-1.5 px-2 hover:bg-white/5 group transition text-sm border-b border-gray-800/50 last:border-0">
+        <div class="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-[11px] text-gray-300 font-bold shrink-0 select-none shadow-sm mt-0.5">
+          ${initial}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-baseline flex-wrap gap-x-2">
+            <span class="font-bold text-gray-400 text-[13px] hover:text-white transition-colors cursor-default" title="${d.name}">${d.name}</span>
+            <span class="bg-yellow-500/10 text-yellow-500 px-1.5 rounded-[3px] text-[11px] font-mono font-bold tracking-tight">${sym}${amt}</span>
+            <span class="text-[10px] text-gray-600 ml-auto select-none">${time}</span>
+          </div>
+        </div>
+        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+          <button onclick="handleEdit('${d.date}')" class="text-gray-500 hover:text-blue-400 p-1 rounded hover:bg-white/5" title="Edit">✏️</button>
+          <button onclick="handleDelete('${d.date}')" class="text-gray-500 hover:text-red-400 p-1 rounded hover:bg-white/5" title="Delete">🗑️</button>
+        </div>
+      </div>
+      `;
+    }).join('');
+
+    els.list.innerHTML = html || '<div class="text-gray-500 text-center mt-20 text-sm">No donations.</div>';
+    setTimeout(() => { els.list.scrollTop = els.list.scrollHeight; }, 0);
+  }
+
+  // --- ACTIONS ---
+  async function handleDelete(dateStr) {
+    if(!confirm('Delete this donation?')) return;
+    try {
+      const res = await fetch(`${API}/delete-donation`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ date: dateStr })
+      });
+      if(res.ok) fetchList();
+    } catch(e) { alert('Delete failed'); }
+  }
+
+  const editModal = document.getElementById('editModal');
+  const editDate = document.getElementById('editDate');
+  const editName = document.getElementById('editName');
+  const editTip = document.getElementById('editTip');
+
+  // Updated handler: Looks up data by ID to avoid quotes breaking HTML attributes
+  window.handleEdit = (dateStr) => {
+    const d = allDonations.find(item => item.date === dateStr);
+    if (!d) return;
+    
+    editDate.value = d.date;
+    editName.value = d.name;
+    editTip.value = d.tip;
+    editModal.classList.remove('hidden');
+  };
+  
+  window.closeEdit = () => editModal.classList.add('hidden');
+  
+  window.submitEdit = async () => {
+    try {
+      const res = await fetch(`${API}/edit-donation`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ 
+          original_date: editDate.value,
+          data: { name: editName.value, tip: editTip.value }
+        })
+      });
+      if(res.ok) {
+        closeEdit();
+        fetchList();
+      }
+    } catch(e) { alert('Update failed'); }
+  };
+  
+  window.handleDelete = handleDelete;
+
+  // --- ADD DONATION ---
+  document.getElementById('addDonationForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('donorName').value;
+    const tip = document.getElementById('donorTip').value;
+    const stat = document.getElementById('donationStatus');
+
+    try {
+      const res = await fetch(`${API}/add-donation`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, tip: parseFloat(tip), date: new Date().toISOString() })
+      });
+      if(res.ok) {
+        stat.innerText = "Added!";
+        document.getElementById('addDonationForm').reset();
+        fetchList();
+        setTimeout(() => stat.innerText = "", 2000);
+      }
+    } catch(e) { stat.innerText = "Error."; }
+  });
+
+  document.getElementById('configForm').addEventListener('submit', (e) => saveConfig(e, false)); // Full save
+
+  // Init
+  loadConfig();
+</script>
+</body>
+</html>

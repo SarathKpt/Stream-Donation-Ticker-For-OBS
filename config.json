@@ -1,0 +1,15 @@
+{
+  "page": "#0f172a",
+  "ticker": "#000000",
+  "opacity": "80",
+  "text": "#ffffff",
+  "accent": "#2a42a2",
+  "filterType": "lifetime",
+  "customStart": "",
+  "customEnd": "",
+  "currency": "\u20b9",
+  "speed": "230",
+  "font": "Inter, system-ui, sans-serif",
+  "fontSize": "1.2",
+  "customCSS": ""
+}
