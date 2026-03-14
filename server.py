@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from flask import Flask, request, send_from_directory, jsonify, send_file, make_response
 
 app = Flask(__name__)
@@ -10,10 +11,41 @@ PORT = 8000
 
 # Get the absolute path to the directory where this script is running
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-JSON_FILE = os.path.join(BASE_DIR, 'donations.json')
-CONFIG_FILE = os.path.join(BASE_DIR, 'config.json') 
+IS_VERCEL = bool(os.environ.get('VERCEL'))
+DATA_DIR = os.path.join('/tmp', 'stream-donation-ticker') if IS_VERCEL else BASE_DIR
+JSON_FILE = os.path.join(DATA_DIR, 'donations.json')
+CONFIG_FILE = os.path.join(DATA_DIR, 'config.json')
 HTML_FILE = 'obs-ticker.html'
 ADMIN_FILE = 'admin.html'
+
+DEFAULT_CONFIG = {
+    "page": "#0f172a", "ticker": "#111827", "opacity": "95",
+    "text": "#ffffff", "accent": "#7c3aed",
+    "filterType": "lifetime", "customStart": "", "customEnd": "",
+    "currency": "₹", "speed": "120", "font": "Inter", "fontSize": "1.35",
+    "customCSS": ""
+}
+
+
+def ensure_data_files():
+    """Ensures writable data files exist for local and serverless runtimes."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+    if not os.path.exists(JSON_FILE):
+        source_json = os.path.join(BASE_DIR, 'donations.json')
+        if source_json != JSON_FILE and os.path.exists(source_json):
+            shutil.copyfile(source_json, JSON_FILE)
+        else:
+            with open(JSON_FILE, 'w', encoding='utf-8') as f:
+                json.dump([], f)
+
+    if not os.path.exists(CONFIG_FILE):
+        source_config = os.path.join(BASE_DIR, 'config.json')
+        if source_config != CONFIG_FILE and os.path.exists(source_config):
+            shutil.copyfile(source_config, CONFIG_FILE)
+        else:
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(DEFAULT_CONFIG, f, indent=2)
 
 # --- Routes ---
 
@@ -31,6 +63,7 @@ def admin():
 def get_donations():
     """Serves the donations.json file with headers to prevent caching."""
     try:
+        ensure_data_files()
         response = make_response(send_file(JSON_FILE))
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
@@ -43,6 +76,7 @@ def get_donations():
 @app.route('/config', methods=['GET', 'POST'])
 def handle_config():
     """Reads or updates the configuration file."""
+    ensure_data_files()
     if request.method == 'GET':
         if os.path.exists(CONFIG_FILE):
             try:
@@ -66,6 +100,7 @@ def handle_config():
 def add_donation():
     """Receives a new donation and saves it to the file."""
     try:
+        ensure_data_files()
         new_donation = request.json
         if not new_donation or 'name' not in new_donation or 'tip' not in new_donation or 'date' not in new_donation:
             return jsonify({'status': 'error', 'message': 'Invalid data'}), 400
@@ -94,6 +129,7 @@ def add_donation():
 def delete_donation():
     """Deletes a donation by its date timestamp."""
     try:
+        ensure_data_files()
         payload = request.json
         target_date = payload.get('date')
         if not target_date: return jsonify({'status': 'error'}), 400
@@ -116,6 +152,7 @@ def delete_donation():
 def edit_donation():
     """Edits an existing donation."""
     try:
+        ensure_data_files()
         payload = request.json
         target_date = payload.get('original_date')
         updates = payload.get('data')
@@ -149,6 +186,7 @@ def edit_donation():
 def test_file_read():
     """A test route to diagnose file reading issues."""
     print("\n--- Running /test diagnostics ---")
+    ensure_data_files()
     if not os.path.exists(JSON_FILE):
         return "TEST FAILED: File not found.", 500
     try:
@@ -160,20 +198,7 @@ def test_file_read():
 
 if __name__ == '__main__':
     print(f"--- OBS Donation Ticker Server ---")
-    
-    if not os.path.exists(JSON_FILE):
-        with open(JSON_FILE, 'w', encoding='utf-8') as f: json.dump([], f)
-    
-    # Ensure config.json exists with expanded defaults
-    if not os.path.exists(CONFIG_FILE):
-        default_conf = {
-            "page": "#0f172a", "ticker": "#111827", "opacity": "95", 
-            "text": "#ffffff", "accent": "#7c3aed",
-            "filterType": "lifetime", "customStart": "", "customEnd": "",
-            "currency": "₹", "speed": "120", "font": "Inter", "fontSize": "1.35",
-            "customCSS": ""
-        }
-        with open(CONFIG_FILE, 'w') as f: json.dump(default_conf, f)
+    ensure_data_files()
 
     print(f"\n> Ticker URL: http://{HOST}:{PORT}")
     print(f"> Admin URL:  http://{HOST}:{PORT}/admin")
