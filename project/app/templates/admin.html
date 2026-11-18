@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ticker Admin</title>
+  <title>Dashboard — Donation Ticker</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { background: #0f172a; color: white; font-family: system-ui, sans-serif; }
@@ -21,14 +21,32 @@
 <body class="p-4 max-w-7xl mx-auto pb-20">
 
   <header class="mb-6 border-b border-gray-700 pb-4">
-    <h1 class="text-3xl font-bold text-indigo-400">Ticker Admin</h1>
-    <p class="text-gray-400 text-sm">Manage donations and appearance for OBS</p>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-indigo-400">Stream Widgets</h1>
+        <p class="text-gray-400 text-sm">Manage donations, settings, and your stream tools</p>
+      </div>
+      <span class="self-start rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1 text-xs font-medium text-indigo-300 sm:self-auto">Dashboard</span>
+    </div>
   </header>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <section class="mb-6 rounded-lg border border-indigo-500/30 bg-gray-800 p-4 shadow-lg">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div class="min-w-36">
+        <h2 class="font-bold text-gray-100">Ticker Speed</h2>
+        <p class="text-xs text-gray-400">Scroll speed in pixels per second</p>
+      </div>
+      <span class="text-xs font-mono text-gray-500">Slow</span>
+      <input type="range" id="speed" min="50" max="400" step="10" class="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+      <span class="text-xs font-mono text-gray-500">Fast</span>
+      <output id="speedVal" class="min-w-12 rounded bg-gray-900 px-2 py-1 text-center text-sm font-mono text-indigo-300"></output>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     
     <!-- LEFT COLUMN: CONTROLS (2/3 Width) -->
-    <div class="lg:col-span-2 space-y-6">
+    <div class="space-y-6">
       
       <!-- ADD DONATION -->
       <section class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
@@ -92,14 +110,6 @@
                   <option value="">None</option>
                 </select>
               </div>
-              <div>
-                <label class="block text-xs text-gray-400 mb-1">Scroll Speed (px/s)</label>
-                <div class="flex items-center gap-3">
-                  <span class="text-xs font-mono text-gray-500 w-6">Slow</span>
-                  <input type="range" id="speed" min="50" max="400" step="10" class="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-                  <span class="text-xs font-mono text-gray-500 w-6">Fast</span>
-                </div>
-              </div>
             </div>
           </section>
         </div>
@@ -161,18 +171,12 @@
           </div>
         </section>
 
-        <!-- ROW 3: PRO MODE -->
-        <section class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-           <h2 class="text-lg font-bold mb-3 flex items-center gap-2"><span>🛠️</span> Pro Mode: Custom CSS</h2>
-           <textarea id="customCSS" rows="4" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-xs font-mono text-green-400 focus:border-indigo-500 outline-none" placeholder=".donor { font-weight: 900; } /* Override anything here */"></textarea>
-        </section>
-
         <div id="configStatus" class="text-xs text-right h-4 text-gray-400"></div>
       </form>
     </div>
 
     <!-- RIGHT COLUMN: DONATION LIST (1/3 Width) -->
-    <div class="lg:col-span-1">
+    <div>
       <section class="bg-gray-900 rounded-lg shadow-lg border border-gray-700 h-full flex flex-col overflow-hidden">
         <div class="p-3 border-b border-gray-700 bg-gray-800 flex justify-between items-center shadow-sm z-10">
           <h2 class="text-md font-bold text-gray-200 flex items-center gap-2">
@@ -189,6 +193,51 @@
     </div>
 
   </div>
+
+  <section class="mt-10" aria-labelledby="widgets-heading">
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <p class="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300">Your toolkit</p>
+        <h2 id="widgets-heading" class="text-2xl font-bold text-white">Widgets</h2>
+        <p class="mt-1 text-sm text-gray-400">Open a widget or customize its source for your stream.</p>
+      </div>
+      <span id="widgetCount" class="rounded-full border border-gray-700 bg-gray-800/80 px-3 py-1 text-xs text-gray-400"></span>
+    </div>
+
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <article data-widget-card class="group relative overflow-hidden rounded-2xl border border-gray-700/80 bg-gradient-to-br from-gray-800 via-gray-800 to-indigo-950/50 shadow-lg transition duration-200 hover:-translate-y-1 hover:border-indigo-400/60 hover:shadow-indigo-950/50">
+        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-300"></div>
+        <div class="p-6">
+          <div class="mb-5 flex items-start justify-between">
+            <div class="flex h-12 w-12 items-center justify-center rounded-xl border border-indigo-300/20 bg-indigo-400/10 text-2xl" aria-hidden="true">〰️</div>
+            <span class="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">Ready</span>
+          </div>
+          <h3 class="text-lg font-bold text-white">Donation Ticker</h3>
+          <p class="mt-2 min-h-10 text-sm leading-5 text-gray-400">A smooth scrolling feed for recent donations in your OBS scene.</p>
+          <div class="mt-6 flex flex-wrap gap-2">
+            <a href="/widgets/donation-ticker" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg border border-gray-600 bg-gray-900/70 px-3.5 py-2 text-sm font-medium text-gray-200 transition hover:border-gray-400 hover:text-white">Open widget <span aria-hidden="true">↗</span></a>
+            <a href="/customize/donation-ticker" class="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-3.5 py-2 text-sm font-semibold text-white shadow transition hover:bg-indigo-400">Customize <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </article>
+
+      <article data-widget-card class="group relative overflow-hidden rounded-2xl border border-gray-700/80 bg-gradient-to-br from-gray-800 via-gray-800 to-amber-950/40 shadow-lg transition duration-200 hover:-translate-y-1 hover:border-amber-300/50 hover:shadow-amber-950/40">
+        <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-300 via-orange-400 to-rose-400"></div>
+        <div class="p-6">
+          <div class="mb-5 flex items-start justify-between">
+            <div class="flex h-12 w-12 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-400/10 text-2xl" aria-hidden="true">🏆</div>
+            <span class="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">Ready</span>
+          </div>
+          <h3 class="text-lg font-bold text-white">Top Donation</h3>
+          <p class="mt-2 min-h-10 text-sm leading-5 text-gray-400">A live row highlighting the four largest donations in the dashboard’s selected period.</p>
+          <div class="mt-6 flex flex-wrap gap-2">
+            <a href="/widgets/top-donation" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg border border-gray-600 bg-gray-900/70 px-3.5 py-2 text-sm font-medium text-gray-200 transition hover:border-gray-400 hover:text-white">Open widget <span aria-hidden="true">↗</span></a>
+            <a href="/customize/top-donation" class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3.5 py-2 text-sm font-semibold text-gray-950 shadow transition hover:bg-amber-300">Customize <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
 
   <!-- EDIT MODAL -->
   <div id="editModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
@@ -212,10 +261,12 @@
 
 <script>
   function getApiBase() {
-    if (window.location.protocol === 'blob:' || window.location.protocol === 'file:') return 'http://localhost:8000';
+    if (window.location.protocol === 'blob:' || window.location.protocol === 'file:') return 'http://localhost:8127';
     return '';
   }
   const API = getApiBase();
+  const widgetCount = document.querySelectorAll('[data-widget-card]').length;
+  document.getElementById('widgetCount').textContent = `${widgetCount} ${widgetCount === 1 ? 'widget' : 'widgets'}`;
 
   // --- ELEMENTS ---
   const els = {
@@ -239,11 +290,15 @@
     fontFamily: document.getElementById('fontFamily'),
     fontSize: document.getElementById('fontSize'),
     fontSizeVal: document.getElementById('fontSizeVal'),
-    customCSS: document.getElementById('customCSS')
+    speedVal: document.getElementById('speedVal')
   };
 
   // --- STATE ---
   let allDonations = [];
+
+  function updateSpeedValue() {
+    els.speedVal.value = `${els.speed.value} px/s`;
+  }
 
   // --- UI LISTENERS ---
   els.filterType.addEventListener('change', () => {
@@ -255,6 +310,7 @@
   els.fontSize.addEventListener('input', () => {
     els.fontSizeVal.innerText = els.fontSize.value + "rem";
   });
+  els.speed.addEventListener('input', updateSpeedValue);
   
   els.customStart.addEventListener('change', () => saveConfig(null, true));
   els.customEnd.addEventListener('change', () => saveConfig(null, true));
@@ -264,28 +320,29 @@
     try {
       const res = await fetch(`${API}/config`);
       const data = await res.json();
+      const settings = data['donation-ticker'] || {};
       
       // Colors
-      if(data.page) els.page.value = data.page;
-      if(data.ticker) els.ticker.value = data.ticker;
-      if(data.opacity) els.opacity.value = data.opacity;
-      if(data.text) els.text.value = data.text;
-      if(data.accent) els.accent.value = data.accent;
+      if(settings.page) els.page.value = settings.page;
+      if(settings.ticker) els.ticker.value = settings.ticker;
+      if(settings.opacity !== undefined) els.opacity.value = settings.opacity;
+      if(settings.text) els.text.value = settings.text;
+      if(settings.accent) els.accent.value = settings.accent;
       
       // General & Type
-      if(data.currency !== undefined) els.currency.value = data.currency;
-      if(data.speed) els.speed.value = data.speed;
-      if(data.font) els.fontFamily.value = data.font;
-      if(data.fontSize) {
-          els.fontSize.value = data.fontSize;
-          els.fontSizeVal.innerText = data.fontSize + "rem";
+      if(settings.currency !== undefined) els.currency.value = settings.currency;
+      if(settings.speed) els.speed.value = settings.speed;
+      if(settings.font) els.fontFamily.value = settings.font;
+      if(settings.fontSize) {
+          els.fontSize.value = settings.fontSize;
+          els.fontSizeVal.innerText = settings.fontSize + "rem";
       }
-      if(data.customCSS) els.customCSS.value = data.customCSS;
+      updateSpeedValue();
 
       // Filter
-      if(data.filterType) els.filterType.value = data.filterType;
-      if(data.customStart) els.customStart.value = data.customStart;
-      if(data.customEnd) els.customEnd.value = data.customEnd;
+      if(settings.filterType) els.filterType.value = settings.filterType;
+      if(settings.customStart) els.customStart.value = settings.customStart;
+      if(settings.customEnd) els.customEnd.value = settings.customEnd;
 
       if(els.filterType.value === 'custom') {
         els.customDateWrap.classList.remove('hidden');
@@ -300,25 +357,13 @@
     }
   }
 
-  // filterOnlyMode: If true, fetch current config, patch filter, save back.
   async function saveConfig(e, filterOnlyMode = false) {
     if(e) e.preventDefault();
-    
-    let payload = {};
-    
-    if (filterOnlyMode) {
-      try {
-        const res = await fetch(`${API}/config`);
-        const current = await res.json();
-        payload = { ...current }; 
-        payload.filterType = els.filterType.value;
-        payload.customStart = els.customStart.value;
-        payload.customEnd = els.customEnd.value;
-        els.status.innerText = "Updating filter...";
-      } catch(e) { console.error(e); return; }
-    } else {
-      // Full Save
-      payload = {
+    try {
+      const res = await fetch(`${API}/config`);
+      const payload = await res.json();
+      const ticker = payload['donation-ticker'];
+      Object.assign(ticker, {
         page: els.page.value,
         ticker: els.ticker.value,
         opacity: els.opacity.value,
@@ -327,21 +372,16 @@
         filterType: els.filterType.value,
         customStart: els.customStart.value,
         customEnd: els.customEnd.value,
-        // New fields
         currency: els.currency.value,
         speed: els.speed.value,
         font: els.fontFamily.value,
-        fontSize: els.fontSize.value,
-        customCSS: els.customCSS.value
-      };
-      els.status.innerText = "Saving settings...";
-    }
-
-    try {
-      await fetch(`${API}/config`, {
+        fontSize: els.fontSize.value
+      });
+      const saveRes = await fetch(`${API}/config`, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
       });
+      if (!saveRes.ok) throw new Error('Save failed');
       els.status.innerText = filterOnlyMode ? "Filter updated." : "Saved!";
       if(filterOnlyMode) fetchList();
       setTimeout(() => els.status.innerText = "", 2000);
@@ -386,58 +426,74 @@
     // Get currency symbol from dropdown (preview purpose)
     const sym = els.currency.value || '';
 
-    const html = filtered.map(d => {
-      const initial = d.name ? d.name[0].toUpperCase() : '?';
-      const amt = parseFloat(d.tip).toLocaleString('en-IN');
-      const time = new Date(d.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-      return `
-      <div class="flex items-start gap-3 py-1.5 px-2 hover:bg-white/5 group transition text-sm border-b border-gray-800/50 last:border-0">
-        <div class="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-[11px] text-gray-300 font-bold shrink-0 select-none shadow-sm mt-0.5">
-          ${initial}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-baseline flex-wrap gap-x-2">
-            <span class="font-bold text-gray-400 text-[13px] hover:text-white transition-colors cursor-default" title="${d.name}">${d.name}</span>
-            <span class="bg-yellow-500/10 text-yellow-500 px-1.5 rounded-[3px] text-[11px] font-mono font-bold tracking-tight">${sym}${amt}</span>
-            <span class="text-[10px] text-gray-600 ml-auto select-none">${time}</span>
-          </div>
-        </div>
-        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
-          <button onclick="handleEdit('${d.date}')" class="text-gray-500 hover:text-blue-400 p-1 rounded hover:bg-white/5" title="Edit">✏️</button>
-          <button onclick="handleDelete('${d.date}')" class="text-gray-500 hover:text-red-400 p-1 rounded hover:bg-white/5" title="Delete">🗑️</button>
-        </div>
-      </div>
-      `;
-    }).join('');
-
-    els.list.innerHTML = html || '<div class="text-gray-500 text-center mt-20 text-sm">No donations.</div>';
+    els.list.replaceChildren();
+    if (!filtered.length) {
+      const empty = document.createElement('div');
+      empty.className = 'text-gray-500 text-center mt-20 text-sm';
+      empty.textContent = 'No donations.';
+      els.list.appendChild(empty);
+    }
+    filtered.forEach(d => {
+      const name = String(d.name || '');
+      const row = document.createElement('div');
+      row.className = 'flex items-start gap-3 py-1.5 px-2 hover:bg-white/5 group transition text-sm border-b border-gray-800/50 last:border-0';
+      const initial = document.createElement('div');
+      initial.className = 'w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-[11px] text-gray-300 font-bold shrink-0 select-none shadow-sm mt-0.5';
+      initial.textContent = name ? name[0].toUpperCase() : '?';
+      const body = document.createElement('div');
+      body.className = 'flex-1 min-w-0';
+      const line = document.createElement('div');
+      line.className = 'flex items-baseline flex-wrap gap-x-2';
+      const donor = document.createElement('span');
+      donor.className = 'font-bold text-gray-400 text-[13px] hover:text-white transition-colors cursor-default';
+      donor.title = name;
+      donor.textContent = name || 'Anonymous';
+      const amount = document.createElement('span');
+      amount.className = 'bg-yellow-500/10 text-yellow-500 px-1.5 rounded-[3px] text-[11px] font-mono font-bold tracking-tight';
+      amount.textContent = `${sym}${parseFloat(d.tip).toLocaleString('en-IN')}`;
+      const time = document.createElement('span');
+      time.className = 'text-[10px] text-gray-600 ml-auto select-none';
+      time.textContent = new Date(d.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      line.append(donor, amount, time);
+      body.appendChild(line);
+      const actions = document.createElement('div');
+      actions.className = 'flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center';
+      const edit = document.createElement('button');
+      edit.className = 'text-gray-500 hover:text-blue-400 p-1 rounded hover:bg-white/5';
+      edit.title = 'Edit'; edit.textContent = '✏️';
+      edit.addEventListener('click', () => handleEdit(d.id));
+      const remove = document.createElement('button');
+      remove.className = 'text-gray-500 hover:text-red-400 p-1 rounded hover:bg-white/5';
+      remove.title = 'Delete'; remove.textContent = '🗑️';
+      remove.addEventListener('click', () => handleDelete(d.id));
+      actions.append(edit, remove);
+      row.append(initial, body, actions);
+      els.list.appendChild(row);
+    });
     setTimeout(() => { els.list.scrollTop = els.list.scrollHeight; }, 0);
   }
 
   // --- ACTIONS ---
-  async function handleDelete(dateStr) {
+  async function handleDelete(id) {
     if(!confirm('Delete this donation?')) return;
     try {
       const res = await fetch(`${API}/delete-donation`, {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ date: dateStr })
+        body: JSON.stringify({ id })
       });
       if(res.ok) fetchList();
     } catch(e) { alert('Delete failed'); }
   }
 
   const editModal = document.getElementById('editModal');
-  const editDate = document.getElementById('editDate');
+  let editId = null;
   const editName = document.getElementById('editName');
   const editTip = document.getElementById('editTip');
 
-  // Updated handler: Looks up data by ID to avoid quotes breaking HTML attributes
-  window.handleEdit = (dateStr) => {
-    const d = allDonations.find(item => item.date === dateStr);
+  window.handleEdit = (id) => {
+    const d = allDonations.find(item => item.id === id);
     if (!d) return;
-    
-    editDate.value = d.date;
+    editId = d.id;
     editName.value = d.name;
     editTip.value = d.tip;
     editModal.classList.remove('hidden');
@@ -450,7 +506,7 @@
       const res = await fetch(`${API}/edit-donation`, {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ 
-          original_date: editDate.value,
+          id: editId,
           data: { name: editName.value, tip: editTip.value }
         })
       });
@@ -491,3 +547,4 @@
 </script>
 </body>
 </html>
+

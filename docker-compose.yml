@@ -1,0 +1,44 @@
+name: obs-donation-ticker
+services:
+  obs-donation-ticker:
+    image: python:3.12-slim
+    container_name: obs-donation-ticker
+    working_dir: /opt/project
+    command:
+      - sh
+      - -c
+      - python -m pip install --no-cache-dir -r /opt/project/requirements.txt && exec python /opt/project/app/server.py
+    ports:
+      - target: 8127
+        published: "8127"
+        protocol: tcp
+        mode: host
+    volumes:
+      - /DATA/AppData/stream-donation-ticker/project:/opt/project:rw
+      - /DATA/AppData/stream-donation-ticker/config/config.json:/opt/project/config.json:rw
+      - /DATA/AppData/stream-donation-ticker/data:/opt/project/data:rw
+    restart: unless-stopped
+    init: true
+
+x-casaos:
+  id: com.local.obs-donation-ticker
+  main: obs-donation-ticker
+  index: /
+  port_map: "8127"
+  scheme: http
+  icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='24' fill='%23111827'/%3E%3Cpath d='M18 44h92v40H18z' fill='%237c3aed'/%3E%3Cpath d='M28 64h72' stroke='white' stroke-width='8' stroke-linecap='round' stroke-dasharray='2 16'/%3E%3C/svg%3E"
+  title:
+    en_US: OBS Donation Ticker
+  tagline:
+    en_US: Private donation dashboard and OBS browser widgets
+  description:
+    en_US: Local Flask dashboard for managing donation records and serving OBS ticker and top donation widgets.
+  author: Local deployment
+  developer: Stream Donation Ticker for OBS
+  category: Media
+  architectures:
+    - amd64
+    - arm64
+  version: "1.0.0"
+
+

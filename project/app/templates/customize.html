@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Customize {{ widget_name }}</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; overflow: hidden; background: #0b1120; color: #e5e7eb; }
+    header { height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 20px; border-bottom: 1px solid #263244; background: #111827; }
+    h1 { margin: 0; font-size: 18px; }
+    .sub { color: #94a3b8; font-size: 12px; margin-top: 2px; }
+    .actions, .tabs { display: flex; align-items: center; gap: 8px; }
+    button, a { border: 1px solid #344155; border-radius: 6px; background: #1f2937; color: #e5e7eb; padding: 8px 12px; font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; }
+    button:hover, a:hover { border-color: #818cf8; }
+    button.primary { background: #4f46e5; border-color: #6366f1; font-weight: 700; }
+    button.primary:disabled { opacity: .5; cursor: default; }
+    main { height: calc(100vh - 64px); display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 12px; padding: 12px; }
+    .panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #263244; border-radius: 8px; background: #111827; }
+    .toolbar { min-height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #263244; }
+    .tab { color: #aab4c4; }
+    .tab[aria-selected="true"] { color: white; background: #3730a3; border-color: #6366f1; }
+    .editors { flex: 1; min-height: 0; }
+    textarea { display: block; width: 100%; height: 100%; resize: none; border: 0; outline: 0; padding: 16px; background: #080d18; color: #d1fae5; font: 13px/1.55 Consolas, 'Cascadia Code', monospace; tab-size: 2; white-space: pre; overflow: auto; }
+    textarea[hidden] { display: none; }
+    iframe { width: 100%; flex: 1; border: 0; background: #080d18; }
+    #status { color: #9ca3af; min-width: 150px; text-align: right; font-size: 12px; }
+    @media (max-width: 850px) {
+      body { height: auto; min-height: 100vh; overflow: auto; }
+      header { height: auto; min-height: 64px; flex-wrap: wrap; padding: 12px; }
+      main { height: auto; min-height: calc(100vh - 80px); grid-template-columns: 1fr; }
+      .panel.editor-panel { min-height: 62vh; }
+      .panel.preview-panel { min-height: 40vh; }
+      textarea { min-height: 55vh; }
+    }
+  </style>
+</head>
+<body data-widget-slug="{{ widget_slug }}" data-widget-name="{{ widget_name }}">
+  <header>
+    <div>
+      <h1>{{ widget_name }} source editor</h1>
+      <div class="sub">Full source is saved in config.json under “{{ widget_slug }}”. Ctrl+S saves changes.</div>
+    </div>
+    <div class="actions">
+      <a href="/">Dashboard</a>
+      <a href="/widgets/{{ widget_slug }}" target="_blank" rel="noopener">Open widget ↗</a>
+      <span id="status">Loading source…</span>
+      <button id="save" class="primary" type="button" disabled>Save</button>
+    </div>
+  </header>
+  <main>
+    <section class="panel editor-panel" aria-label="Source editor">
+      <div class="toolbar">
+        <div class="tabs" role="tablist" aria-label="Source type">
+          <button class="tab" role="tab" aria-selected="true" data-code-type="html">HTML</button>
+          <button class="tab" role="tab" aria-selected="false" data-code-type="css">CSS</button>
+          <button class="tab" role="tab" aria-selected="false" data-code-type="js">JavaScript</button>
+        </div>
+        <span class="sub">HTML accepts body markup or a full document</span>
+      </div>
+      <div class="editors">
+        <textarea id="code-html" aria-label="HTML source" spellcheck="false" wrap="off" placeholder="Write the widget HTML markup here."></textarea>
+        <textarea id="code-css" aria-label="CSS source" spellcheck="false" wrap="off" placeholder="Write the widget stylesheet here." hidden></textarea>
+        <textarea id="code-js" aria-label="JavaScript source" spellcheck="false" wrap="off" placeholder="Write the widget JavaScript here." hidden></textarea>
+      </div>
+    </section>
+    <section class="panel preview-panel" aria-label="Saved widget preview">
+      <div class="toolbar">
+        <strong>Saved preview</strong>
+        <button id="refresh-preview" type="button">Refresh preview</button>
+      </div>
+      <iframe id="preview" title="Saved widget preview"></iframe>
+    </section>
+  </main>
+<script>
+const slug = document.body.dataset.widgetSlug;
+const fields = ['html', 'css', 'js'];
+const editors = Object.fromEntries(fields.map(type => [type, document.getElementById(`code-${type}`)]));
+const statusEl = document.getElementById('status');
+const saveButton = document.getElementById('save');
+const preview = document.getElementById('preview');
+let savedCode = null;
+
+function currentCode() {
+  return Object.fromEntries(fields.map(type => [type, editors[type].value]));
+}
+function setDirtyState() {
+  const dirty = savedCode && JSON.stringify(currentCode()) !== JSON.stringify(savedCode);
+  saveButton.disabled = !dirty;
+  statusEl.textContent = dirty ? 'Unsaved changes' : 'Saved';
+}
+function refreshPreview() {
+  preview.src = `/widgets/${slug}?preview=${Date.now()}`;
+}
+async function loadCode() {
+  try {
+    const response = await fetch('/config', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Could not load config');
+    const config = await response.json();
+    const code = config[slug]?.code || {};
+    for (const type of fields) editors[type].value = code[type] || '';
+    savedCode = currentCode();
+    setDirtyState();
+    refreshPreview();
+  } catch (error) {
+    console.error(error);
+    statusEl.textContent = 'Load failed';
+  }
+}
+async function saveCode() {
+  if (saveButton.disabled) return;
+  saveButton.disabled = true;
+  statusEl.textContent = 'Saving…';
+  try {
+    const getResponse = await fetch('/config', { cache: 'no-store' });
+    if (!getResponse.ok) throw new Error('Could not load config');
+    const config = await getResponse.json();
+    config[slug].code = currentCode();
+    const saveResponse = await fetch('/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    if (!saveResponse.ok) throw new Error('Could not save config');
+    savedCode = currentCode();
+    statusEl.textContent = 'Saved';
+    refreshPreview();
+  } catch (error) {
+    console.error(error);
+    statusEl.textContent = 'Save failed';
+    saveButton.disabled = false;
+  }
+}
+
+document.querySelectorAll('[data-code-type]').forEach(button => {
+  button.addEventListener('click', () => {
+    for (const tab of document.querySelectorAll('[data-code-type]')) tab.setAttribute('aria-selected', String(tab === button));
+    for (const type of fields) editors[type].hidden = type !== button.dataset.codeType;
+    editors[button.dataset.codeType].focus();
+  });
+});
+for (const editor of Object.values(editors)) editor.addEventListener('input', setDirtyState);
+saveButton.addEventListener('click', saveCode);
+document.getElementById('refresh-preview').addEventListener('click', refreshPreview);
+document.addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+    event.preventDefault();
+    saveCode();
+  }
+});
+loadCode();
+</script>
+</body>
+</html>
